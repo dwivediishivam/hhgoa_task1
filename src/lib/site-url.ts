@@ -25,7 +25,7 @@ function validOrigin(value?: string) {
  */
 export function configuredSiteOrigin() {
   return validOrigin(process.env.NEXT_PUBLIC_APP_URL)
-    ?? validOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL)
+    ?? validOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined)
     ?? validOrigin(process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined)
     ?? FALLBACK_ORIGIN;
 }
