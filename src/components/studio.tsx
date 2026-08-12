@@ -70,6 +70,7 @@ export function Studio() {
   const [profile, setProfile] = useState<BuilderProfile>(initialProfile);
   const [busy, setBusy] = useState<"download" | "share" | null>(null);
   const [toast, setToast] = useState<Toast>(null);
+  const [isDropping, setIsDropping] = useState(false);
   const photoInput = useRef<HTMLInputElement>(null);
   const memberInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -88,8 +89,7 @@ export function Studio() {
     });
   };
 
-  const changePrimaryPhoto = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const loadPrimaryPhoto = async (file?: File) => {
     if (!file) return;
     try {
       notify(/hei[cf]$/i.test(file.name) ? "Converting your iPhone photo locally…" : "Photo loaded. Drag it to frame it.");
@@ -99,9 +99,12 @@ export function Studio() {
       notify("Photo ready — drag directly on the preview to frame it.", "success");
     } catch (error) {
       notify(error instanceof Error ? error.message : "We couldn't use that photo.", "error");
-    } finally {
-      event.target.value = "";
     }
+  };
+
+  const changePrimaryPhoto = async (event: ChangeEvent<HTMLInputElement>) => {
+    await loadPrimaryPhoto(event.target.files?.[0]);
+    event.target.value = "";
   };
 
   const updateMember = (id: string, update: Partial<Member>) => {
@@ -145,6 +148,11 @@ export function Studio() {
   };
 
   const download = async () => {
+    if (!profile.image) {
+      notify("Add a photo first — then your download unlocks.", "info");
+      photoInput.current?.click();
+      return;
+    }
     setBusy("download");
     try {
       const canvas = await createCanvas();
@@ -166,6 +174,11 @@ export function Studio() {
   };
 
   const shareToX = async () => {
+    if (!profile.image) {
+      notify("Add a photo first — then we can make your X preview.", "info");
+      photoInput.current?.click();
+      return;
+    }
     let shareWindow: Window | null = null;
     try {
       shareWindow = window.open("", "_blank");
@@ -178,7 +191,7 @@ export function Studio() {
       form.append("title", profile.title);
       form.append("mode", mode);
       const response = await fetch("/api/share", { method: "POST", body: form });
-      const data = (await response.json()) as { shareUrl?: string; error?: string };
+      const data = (await response.json().catch(() => ({}))) as { shareUrl?: string; error?: string };
       if (!response.ok || !data.shareUrl) throw new Error(data.error || "Could not create your share card.");
       const caption = `I just made my HH Goa 2026 ${modeName(mode)}. See you at the build station. 🌴\n\nMake yours →`;
       const intent = new URL("https://x.com/intent/tweet");
@@ -190,7 +203,7 @@ export function Studio() {
     } catch (error) {
       shareWindow?.close();
       const message = error instanceof Error ? error.message : "Could not create your X share card.";
-      notify(message.includes("not configured") ? "Share links need Supabase environment keys before deployment. Your download still works." : message, "error");
+      notify(message.includes("not configured") ? "Share isn’t configured on this deployment yet. Download still works." : message, "error");
     } finally {
       setBusy(null);
     }
@@ -220,6 +233,7 @@ export function Studio() {
             <span><Check size={15} /> made for mobile</span>
             <span><Check size={15} /> ready in seconds</span>
           </div>
+          <a className="hero-cta" href="#builder">MAKE YOUR ID <ArrowDownToLine size={16} /></a>
         </div>
         <div className="hero-side-note">
           <div className="note-arrow">↘</div>
@@ -228,7 +242,7 @@ export function Studio() {
         </div>
       </section>
 
-      <section className="studio-shell shell" aria-labelledby="studio-heading">
+      <section className="studio-shell shell" id="builder" aria-labelledby="studio-heading">
         <div className="studio-title-row">
           <div>
             <p className="eyebrow">IDENTITY STUDIO / 0247</p>
@@ -237,7 +251,7 @@ export function Studio() {
           <p className="studio-title-hint">Your original stays on your device.<br />We only create a public image when you hit Share to X.</p>
         </div>
 
-        <div className="mode-selector" role="tablist" aria-label="Graphic format">
+        <div className="mode-selector" role="tablist" aria-label="Choose a graphic format">
           {MODES.map((item, index) => (
             <motion.button
               key={item.id}
@@ -261,16 +275,28 @@ export function Studio() {
 
         <div className="workbench">
           <section className="controls-panel" aria-label="Build your graphic">
-            <div className="panel-kicker"><span>01</span> YOUR SIGNAL</div>
-            <button className={`photo-upload ${profile.image ? "has-image" : ""}`} type="button" onClick={() => photoInput.current?.click()}>
-              <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" onChange={changePrimaryPhoto} hidden />
+            <div className="editor-heading">
+              <div className="panel-kicker"><span>01</span> YOUR SIGNAL</div>
+              <p>Start with the photo. Everything else is optional polish.</p>
+            </div>
+            <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" onChange={changePrimaryPhoto} hidden />
+            <button
+              className={`photo-upload ${profile.image ? "has-image" : ""} ${isDropping ? "is-dropping" : ""}`}
+              type="button"
+              onClick={() => photoInput.current?.click()}
+              onDragEnter={(event) => { event.preventDefault(); setIsDropping(true); }}
+              onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }}
+              onDragLeave={(event) => { if (event.currentTarget === event.target) setIsDropping(false); }}
+              onDrop={(event) => { event.preventDefault(); setIsDropping(false); void loadPrimaryPhoto(event.dataTransfer.files?.[0]); }}
+            >
               {profile.image ? <img src={profile.image} alt="Selected builder" /> : <span className="upload-portrait" aria-hidden="true" />}
               <span className="upload-copy">
                 <strong>{profile.image ? "SWAP YOUR PHOTO" : "DROP YOUR PHOTO"}</strong>
-                <small>JPG, PNG, HEIC — up to 20 MB</small>
+                <small>or tap to browse • JPG, PNG, HEIC</small>
               </span>
               <ImagePlus size={23} />
             </button>
+            <p className="privacy-line"><Check size={14} /> Original stays on your device until you choose Share.</p>
 
             <div className="field-grid">
               <label className="field-label">
@@ -333,27 +359,36 @@ export function Studio() {
           <section className="preview-panel" aria-label={`${outputLabel} preview`}>
             <div className="preview-head">
               <span className="panel-kicker"><span>PREVIEW</span> {activeMode.kicker}</span>
-              <span className="live-pill"><i /> LIVE COMPOSITE</span>
+              <span className={`live-pill ${profile.image ? "" : "is-waiting"}`}><i /> {profile.image ? "LIVE COMPOSITE" : "AWAITING PHOTO"}</span>
             </div>
-            <CanvasPreview mode={mode} profile={profile} onCropChange={(crop) => setProfile((current) => ({ ...current, crop }))} isExporting={busy !== null} />
+            <CanvasPreview
+              mode={mode}
+              profile={profile}
+              onCropChange={(crop) => setProfile((current) => ({ ...current, crop }))}
+              onResetCrop={() => setProfile((current) => ({ ...current, crop: DEFAULT_CROP }))}
+              isExporting={busy !== null}
+            />
             <div className="preview-tools">
-              {mode === "crew" ? <span><UsersRound size={16} /> YOU + {profile.members.length} CREW {profile.members.length === 1 ? "MATE" : "MATES"}</span> : <span><Move size={16} /> DRAG TO REPOSITION</span>}
-              {mode !== "crew" && <span><ZoomIn size={16} /> SCROLL TO ZOOM</span>}
+              {!profile.image ? <span><ImagePlus size={16} /> UPLOAD A PHOTO TO UNLOCK YOUR LIVE PREVIEW</span> : <>
+                {mode === "crew" ? <span><UsersRound size={16} /> YOU + {profile.members.length} CREW {profile.members.length === 1 ? "MATE" : "MATES"}</span> : <span><Move size={16} /> DRAG TO REPOSITION</span>}
+                {mode !== "crew" && <span><ZoomIn size={16} /> ZOOM CONTROLS</span>}
+              </>}
             </div>
           </section>
 
           <aside className="output-panel">
             <div className="panel-kicker"><span>03</span> MAKE IT REAL</div>
-            <h3>YOUR {outputLabel.toUpperCase()}<br /><em>IS READY.</em></h3>
-            <p>High-resolution download, or send a real preview card straight into a pre-filled X post.</p>
-            <button type="button" className="download-button" onClick={download} disabled={busy !== null}>
+            <h3>{profile.image ? <>READY TO <em>POST.</em></> : <>ADD A PHOTO<br /><em>TO START.</em></>}</h3>
+            <p>{profile.image ? `Your ${outputLabel} is live. Download the full-quality image or open a real X preview.` : "Upload one photo to unlock a full-resolution download and X-ready preview."}</p>
+            {!profile.image && <button type="button" className="unlock-button" onClick={() => photoInput.current?.click()}><ImagePlus size={17} /> ADD A PHOTO TO UNLOCK</button>}
+            <button type="button" className="download-button" onClick={download} disabled={busy !== null || !profile.image}>
               {busy === "download" ? <LoaderCircle className="spin" size={19} /> : <ArrowDownToLine size={19} />} DOWNLOAD IMAGE
             </button>
-            <button type="button" className="share-button" onClick={shareToX} disabled={busy !== null}>
+            <button type="button" className="share-button" onClick={shareToX} disabled={busy !== null || !profile.image}>
               {busy === "share" ? <LoaderCircle className="spin" size={19} /> : <Send size={18} />} SHARE TO X <span>↗</span>
             </button>
             <div className="output-divider" />
-            <div className="share-note"><Sparkles size={17} /><span><strong>One tap, proper preview.</strong> We generate a unique public preview only when you choose Share — so X shows your actual graphic.</span></div>
+            <div className="share-note"><Sparkles size={17} /><span><strong>One tap, proper preview.</strong> We generate a unique public preview only when you choose Share, so X shows your actual graphic.</span></div>
             <div className="submission-checklist">
               <span>SUBMISSION CHECK</span>
               <p><Check size={15} /> Download your result</p>

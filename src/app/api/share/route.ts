@@ -9,9 +9,26 @@ function asString(value: FormDataEntryValue | null, fallback = "") {
   return typeof value === "string" ? value.slice(0, 120) : fallback;
 }
 
+function publicBaseUrl(request: Request) {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  try {
+    const candidate = new URL(configured || request.url);
+    const isPlaceholder = ["your-production-domain.com", "your-vercel-domain.vercel.app"].includes(candidate.hostname);
+    if (!isPlaceholder && (candidate.protocol === "https:" || candidate.protocol === "http:")) {
+      return candidate.origin;
+    }
+  } catch {
+    // A deployment should still share from its actual request URL when the setting is incomplete.
+  }
+  return new URL(request.url).origin;
+}
+
 export async function POST(request: Request) {
   if (!isShareConfigured()) {
-    return NextResponse.json({ error: "Public Share is not configured yet." }, { status: 503 });
+    return NextResponse.json({
+      error: "Share is not configured on this deployment. Add the Supabase environment variables in Vercel and redeploy.",
+      code: "SHARE_NOT_CONFIGURED",
+    }, { status: 503 });
   }
 
   try {
@@ -54,10 +71,19 @@ export async function POST(request: Request) {
       throw recordError;
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
-    return NextResponse.json({ shareUrl: `${baseUrl.replace(/\/$/, "")}/share/${id}` });
+    return NextResponse.json({ shareUrl: `${publicBaseUrl(request)}/share/${id}` });
   } catch (error) {
-    console.error("Could not create HH Goa share card", error);
-    return NextResponse.json({ error: "Could not create your public preview. Please try again." }, { status: 500 });
+    const rawMessage = error instanceof Error ? error.message : "Unknown share error";
+    console.error("Could not create HH Goa share card", { message: rawMessage });
+    const lower = rawMessage.toLowerCase();
+    const hint = lower.includes("bucket") || lower.includes("not found")
+      ? "Create the hhgoa-shares Storage bucket and the share_cards table in Supabase, then try again."
+      : lower.includes("row-level security") || lower.includes("permission") || lower.includes("policy")
+        ? "Check that SUPABASE_SERVICE_ROLE_KEY is set in Vercel (not the anon key), then redeploy."
+        : "Please try again. If it repeats, check the Vercel function logs for /api/share.";
+    return NextResponse.json({
+      error: `Could not create your public preview. ${hint}`,
+      code: "SHARE_CREATE_FAILED",
+    }, { status: 500 });
   }
 }
