@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isShareConfigured, shareBucket, supabaseAdmin } from "@/lib/supabase-server";
+import { publicSiteOrigin } from "@/lib/site-url";
 
 export const runtime = "nodejs";
 
@@ -7,20 +8,6 @@ const MAX_SHARE_IMAGE_BYTES = 3 * 1024 * 1024;
 
 function asString(value: FormDataEntryValue | null, fallback = "") {
   return typeof value === "string" ? value.slice(0, 120) : fallback;
-}
-
-function publicBaseUrl(request: Request) {
-  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  try {
-    const candidate = new URL(configured || request.url);
-    const isPlaceholder = ["your-production-domain.com", "your-vercel-domain.vercel.app"].includes(candidate.hostname);
-    if (!isPlaceholder && (candidate.protocol === "https:" || candidate.protocol === "http:")) {
-      return candidate.origin;
-    }
-  } catch {
-    // A deployment should still share from its actual request URL when the setting is incomplete.
-  }
-  return new URL(request.url).origin;
 }
 
 export async function POST(request: Request) {
@@ -71,7 +58,7 @@ export async function POST(request: Request) {
       throw recordError;
     }
 
-    return NextResponse.json({ shareUrl: `${publicBaseUrl(request)}/share/${id}` });
+    return NextResponse.json({ shareUrl: `${publicSiteOrigin(request)}/share/${id}` });
   } catch (error) {
     const rawMessage = error instanceof Error ? error.message : "Unknown share error";
     console.error("Could not create HH Goa share card", { message: rawMessage });

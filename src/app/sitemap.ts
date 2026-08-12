@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
+import { configuredSiteOrigin } from "@/lib/site-url";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://hhgoa-builder-house.vercel.app").replace(/\/$/, "");
+  const baseUrl = configuredSiteOrigin();
   return [{ url: baseUrl, lastModified: new Date(), changeFrequency: "weekly", priority: 1 }];
 }

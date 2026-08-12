@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
+import { configuredSiteOrigin } from "@/lib/site-url";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://hhgoa-builder-house.vercel.app").replace(/\/$/, "");
+  const baseUrl = configuredSiteOrigin();
   return { rules: { userAgent: "*", allow: "/" }, sitemap: `${baseUrl}/sitemap.xml` };
 }
