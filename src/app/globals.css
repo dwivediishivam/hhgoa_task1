@@ -183,7 +183,8 @@ a { color: inherit; text-decoration: none; }
 .crop-tip span { color: var(--yellow); font-size: 14px; }
 .preview-frame:hover .crop-tip, .preview-frame.is-dragging .crop-tip { opacity: 1; }
 .preview-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 7px; background: rgba(255,251,232,.44); color: var(--green); backdrop-filter: blur(1px); font: 700 9px var(--mono); letter-spacing: .09em; pointer-events: none; }
-.preview-empty { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 7px; background: rgba(7,60,36,.16); color: var(--cream); text-align: center; pointer-events: none; }
+.preview-empty { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 7px; width: 100%; border: 0; background: rgba(7,60,36,.16); color: var(--cream); text-align: center; transition: background .2s; }
+.preview-empty:hover, .preview-empty:focus-visible { background: rgba(7,60,36,.33); outline: 2px solid var(--yellow); outline-offset: -8px; }
 .preview-empty span { display: grid; place-items: center; width: 28px; height: 23px; background: var(--yellow); color: var(--green); font: 700 9px var(--mono); }
 .preview-empty strong { font: 800 35px/.72 var(--display); letter-spacing: -.02em; }
 .preview-empty small { font: 600 9px var(--mono); }

@@ -366,6 +366,7 @@ export function Studio() {
               profile={profile}
               onCropChange={(crop) => setProfile((current) => ({ ...current, crop }))}
               onResetCrop={() => setProfile((current) => ({ ...current, crop: DEFAULT_CROP }))}
+              onSelectPhoto={() => photoInput.current?.click()}
               isExporting={busy !== null}
             />
             <div className="preview-tools">

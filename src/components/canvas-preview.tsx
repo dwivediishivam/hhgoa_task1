@@ -12,6 +12,7 @@ type CanvasPreviewProps = {
   profile: BuilderProfile;
   onCropChange: (crop: Crop) => void;
   onResetCrop: () => void;
+  onSelectPhoto: () => void;
   isExporting?: boolean;
 };
 
@@ -21,7 +22,7 @@ const ASPECT: Record<StudioMode, string> = {
   crew: "4 / 3",
 };
 
-export function CanvasPreview({ mode, profile, onCropChange, onResetCrop, isExporting = false }: CanvasPreviewProps) {
+export function CanvasPreview({ mode, profile, onCropChange, onResetCrop, onSelectPhoto, isExporting = false }: CanvasPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drag = useRef<{ startX: number; startY: number; crop: Crop } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -108,11 +109,11 @@ export function CanvasPreview({ mode, profile, onCropChange, onResetCrop, isExpo
         {mode === "pfp" && <div className="circle-safe-zone" aria-hidden="true" />}
         {mode === "id" && <div className="photo-safe-zone" aria-hidden="true" />}
         {!profile.image && (
-          <div className="preview-empty" aria-hidden="true">
+          <button type="button" className="preview-empty" onClick={onSelectPhoto}>
             <span>01</span>
             <strong>ADD A PHOTO<br />TO BEGIN</strong>
             <small>Your card develops here.</small>
-          </div>
+          </button>
         )}
         {mode !== "crew" && profile.image && (
           <div className="crop-tip" aria-hidden="true">
